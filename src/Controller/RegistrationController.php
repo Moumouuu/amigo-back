@@ -10,13 +10,23 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Routing\Annotation\Route;
+use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
 
 #[Route('/api', name: 'api_register')]
 class RegistrationController extends AbstractController
 {
-    #[Route('/register', name: 'api_register', methods: ['POST'])]
-    public function register(Request $request, UserPasswordHasherInterface $userPasswordHasher, EntityManagerInterface $entityManager): JsonResponse
+    private $jwtManager;
+
+    public function __construct(JWTTokenManagerInterface $jwtManager)
     {
+        $this->jwtManager = $jwtManager;
+    }
+
+    #[Route('/register', name: 'api_register', methods: ['POST'])]
+    public function register(
+        Request $request,
+        EntityManagerInterface $entityManager
+    ): JsonResponse {
         $userRepository = $entityManager->getRepository(User::class);
         $emailUser = $request->request->get('email');
         $passwordUser = $request->request->get('password');
@@ -33,13 +43,15 @@ class RegistrationController extends AbstractController
         }
 
         $user = new User();
-        $user->setPassword(
-            $userPasswordHasher->hashPassword(
-                $user,
-                $passwordUser
-            )
-        );
+
+        $hashedPassword = password_hash($passwordUser, PASSWORD_DEFAULT);
+
+        $user->setPassword($hashedPassword);
         $user->setEmail($emailUser);
+
+        $token = $this->jwtManager->create($user);
+        $trimmedToken = substr($token, 0, 255);
+        $user->setToken($trimmedToken);
 
         $entityManager->persist($user);
         $entityManager->flush();
