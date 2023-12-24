@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Entity\User;
+use DateTime;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -27,31 +28,37 @@ class RegistrationController extends AbstractController
         Request $request,
         EntityManagerInterface $entityManager
     ): JsonResponse {
+        //repository
         $userRepository = $entityManager->getRepository(User::class);
-        $emailUser = $request->request->get('email');
-        $passwordUser = $request->request->get('password');
 
-        // check if email and password are sent
-        if (empty($emailUser) || empty($passwordUser)) {
-            return new JsonResponse(['msg' => 'Missing parameters'], Response::HTTP_BAD_REQUEST);
-        }
+        // data from request
+        $parameters = json_decode($request->getContent(), true);
 
-        $user = $userRepository->findOneBy(['email' => $emailUser]);
+        $userEmail = $parameters['email'];
+        $userPassword = $parameters['password'];
+
         // check if user already exists
+        $user = $userRepository->findOneBy(['email' => $userEmail]);
         if ($user) {
-            return new JsonResponse(['msg' => 'User already exists']);
+            return new JsonResponse(['msg' => 'User already exists'], Response::HTTP_BAD_REQUEST);
         }
 
+        //create user
         $user = new User();
-
-        $hashedPassword = password_hash($passwordUser, PASSWORD_DEFAULT);
-
-        $user->setPassword($hashedPassword);
-        $user->setEmail($emailUser);
+        // hash password
+        $hashedPassword = password_hash($userPassword, PASSWORD_DEFAULT);
 
         $token = $this->jwtManager->create($user);
         $trimmedToken = substr($token, 0, 255);
-        $user->setToken($trimmedToken);
+
+        $user
+            ->setEmail($userEmail)
+            ->setPassword($hashedPassword)
+            ->setFirstName($parameters['firstName'])
+            ->setLastName($parameters['lastName'])
+            ->setDetails($parameters['details'])
+            ->setDateOfBirth(new DateTime($parameters['dateOfBirth']) ?? null)
+            ->setToken($trimmedToken);
 
         $entityManager->persist($user);
         $entityManager->flush();

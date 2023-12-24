@@ -27,8 +27,9 @@ class ApiLoginController extends AbstractController
         Request $request,
         EntityManagerInterface $em,
     ): Response {
-        $userEmail = $request->request->get('email');
-        $userPassword = $request->request->get('password');
+        $parameters = json_decode($request->getContent(), true);
+        $userEmail = $parameters['email'];
+        $userPassword = $parameters['password'];
 
         if (empty($userEmail) || empty($userPassword)) {
             return new JsonResponse(['msg' => 'Missing parameters'], Response::HTTP_BAD_REQUEST);
