@@ -37,10 +37,14 @@ class RegistrationController extends AbstractController
         $userEmail = $parameters['email'];
         $userPassword = $parameters['password'];
 
+        if (!filter_var($userEmail, FILTER_VALIDATE_EMAIL)) {
+            return new JsonResponse(['error' => "Le format de l'email n'est pas valide !"], Response::HTTP_BAD_REQUEST);
+        }
+
         // check if user already exists
         $user = $userRepository->findOneBy(['email' => $userEmail]);
         if ($user) {
-            return new JsonResponse(['msg' => 'User already exists'], Response::HTTP_BAD_REQUEST);
+            return new JsonResponse(['error' => "L'utilisateur existe déjà !"], Response::HTTP_BAD_REQUEST);
         }
 
         //create user
@@ -57,12 +61,12 @@ class RegistrationController extends AbstractController
             ->setFirstName($parameters['firstName'])
             ->setLastName($parameters['lastName'])
             ->setDetails($parameters['details'])
-            ->setDateOfBirth(new DateTime($parameters['dateOfBirth']) ?? null)
+            ->setDateOfBirth(array_key_exists('dateOfBirth', $parameters) ? new DateTime($parameters['dateOfBirth']) : null)
             ->setToken($trimmedToken);
 
         $entityManager->persist($user);
         $entityManager->flush();
 
-        return new JsonResponse(['msg' => 'User created']);
+        return new JsonResponse(['msg' => 'User created', 'token' => $trimmedToken]);
     }
 }

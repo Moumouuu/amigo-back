@@ -31,19 +31,23 @@ class ApiLoginController extends AbstractController
         $userEmail = $parameters['email'];
         $userPassword = $parameters['password'];
 
+        if (!filter_var($userEmail, FILTER_VALIDATE_EMAIL)) {
+            return new JsonResponse(['error' => "Le format de l'email n'est pas valide !"], Response::HTTP_BAD_REQUEST);
+        }
+
         if (empty($userEmail) || empty($userPassword)) {
-            return new JsonResponse(['msg' => 'Missing parameters'], Response::HTTP_BAD_REQUEST);
+            return new JsonResponse(['error' => 'Il manque des champs obligatoires !'], Response::HTTP_BAD_REQUEST);
         }
 
         $user = $em->getRepository(User::class)->findOneBy(['email' => $userEmail]);
 
         if (!$user) {
-            return new JsonResponse(['msg' => 'User not found'], Response::HTTP_NOT_FOUND);
+            return new JsonResponse(['error' => "Ce compte n'existe pas !"], Response::HTTP_NOT_FOUND);
         }
 
         // check password
         if (!password_verify($userPassword, $user->getPassword())) {
-            return new JsonResponse(['msg' => 'Bad credentials'], Response::HTTP_BAD_REQUEST);
+            return new JsonResponse(['error' => 'Le mot de passe est incorrect'], Response::HTTP_BAD_REQUEST);
         }
 
         $token = $this->jwtManager->create($user);
